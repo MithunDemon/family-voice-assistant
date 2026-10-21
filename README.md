@@ -11,14 +11,29 @@ Families can speak or type to a smart assistant that understands natural househo
 
 ## ✨ Features
 
-- **Alexa-inspired UI**: Dynamic glowing cyan/blue voice ring/orb that reflects real-time status (Listening, Speaking, Idle).
+- **3D Procedural Talking Character**: Built entirely in Three.js (no external 3D asset downloads required, bundled locally for offline use). Animates head tilt when listening, thinking eye shifts, random natural blinking, and speech-synchronized mouth visemes/phonemes with browser SpeechSynthesis. Includes a fallback to the glowing Alexa ring for older devices.
 - **Voice-First Experience**: Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`) for hands-free speech input, and `speechSynthesis` for spoken-style audio feedback.
 - **Pluggable LLM Architecture**:
   - `mock`: Instant rule-based semantic parser that reliably handles demo phrases and natural language without external API keys or cost.
-  - `bedrock`: Amazon Bedrock Converse API with native tool-use support (`boto3`).
+  - `bedrock`: Amazon Bedrock Converse API with native tool-use support (`boto3`) and automatic fail-safe fallback.
 - **Live Family State Dashboard**: Real-time side panel reflecting the exact state of groceries, reminders, and calendar appointments.
 - **Transparent Tool Calling**: Visual execution chips in the chat transcript indicating which tools were triggered (e.g. `⚡ add_grocery_item(milk)`).
 - **Multi-Item Command Handling**: Say *"Add milk and eggs to the grocery list"* and watch the assistant dispatch separate tool calls for each item!
+
+---
+
+## 🎭 3D Talking Character
+
+The web client features an interactive procedural 3D assistant character rendered with Three.js:
+- **Zero External Model Dependencies**: Procedurally generated head, expressive eyes with eyelids, eyebrows, and a dynamic mouth geometry that morphs during speech.
+- **Interactive State Transitions**:
+  - `idle`: Gentle breathing oscillation, natural blinking (every 2-5s), and subtle head sway.
+  - `listening`: Head tilts inquisitively, eyes widen and look attentively toward the user.
+  - `thinking`: Eyes look upward and to the side during backend tool execution.
+  - `speaking`: Mouth opens and closes smoothly with slight randomized phoneme modulation tied to `speechSynthesis.onboundary` and `onstart`. Closes completely on speech conclusion.
+- **Autoplay Speech Compatibility**: Includes a **"✨ Start Voice Assistant"** button that unlocks browser audio policies and triggers a friendly spoken greeting.
+- **Offline / Local Vendor**: Three.js is bundled directly under `static/vendor/three.module.js` (no CDN network requests required).
+- **Graceful Fallback**: Automatically falls back to the glowing 2D Alexa Orb if WebGL is unavailable.
 
 ---
 

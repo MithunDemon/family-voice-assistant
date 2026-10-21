@@ -131,39 +131,77 @@ body {
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
-.provider-badge .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
+.provider-badge.mcp-badge {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
-.icon-btn {
-  background: var(--bg-card);
-  border: 1px solid var(--border-card);
-  color: var(--text-primary);
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
-  transition: all 0.2s ease;
+.provider-badge.mcp-badge.online {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.icon-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+.hidden {
+  display: none !important;
 }
 
-/* Center Orb / Ring */
+.fallback-hidden {
+  display: none !important;
+}
+
+/* Center 3D Avatar / Orb */
 .orb-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem 0 1rem;
+  padding: 0.5rem 0 0.5rem;
+}
+
+.character-wrapper {
+  position: relative;
+  width: 240px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.character-container {
+  width: 100%;
+  height: 100%;
+}
+
+.character-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  outline: none;
+}
+
+.avatar-controls {
+  margin-top: 0.25rem;
+}
+
+.start-btn {
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.2), rgba(157, 78, 221, 0.2));
+  border: 1px solid rgba(0, 210, 255, 0.4);
+  color: #e0f2fe;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 12px rgba(0, 210, 255, 0.15);
+}
+
+.start-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 210, 255, 0.35), rgba(157, 78, 221, 0.35));
+  border-color: rgba(0, 210, 255, 0.7);
+  box-shadow: 0 0 16px rgba(0, 210, 255, 0.35);
+  transform: translateY(-1px);
 }
 
 .alexa-ring-wrapper {

@@ -1,10 +1,22 @@
+import {
+  initCharacter,
+  setCharacterState,
+  triggerMouthPhoneme,
+  closeMouthImmediately
+} from "./character.js";
+
 // State & Configuration
 let chatHistory = [];
 let ttsEnabled = true;
 let isRecognizing = false;
 let recognition = null;
+let preferredVoice = null;
+let hasStarted = false;
+let has3DCharacter = false;
 
 // DOM Elements
+const characterWrapper = document.getElementById("characterWrapper");
+const alexaRingWrapper = document.getElementById("alexaRingWrapper");
 const alexaRing = document.getElementById("alexaRing");
 const orbStatusIcon = document.getElementById("orbStatusIcon");
 const statusText = document.getElementById("statusText");
@@ -15,8 +27,11 @@ const micBtn = document.getElementById("micBtn");
 const toggleTtsBtn = document.getElementById("toggleTtsBtn");
 const ttsIcon = document.getElementById("ttsIcon");
 const clearChatBtn = document.getElementById("clearChatBtn");
+const startBtn = document.getElementById("startBtn");
 const providerBadge = document.getElementById("providerBadge");
 const providerText = document.getElementById("providerText");
+const mcpBadge = document.getElementById("mcpBadge");
+const mcpText = document.getElementById("mcpText");
 const lastUpdated = document.getElementById("lastUpdated");
 
 // Live Dashboard Elements
@@ -27,9 +42,59 @@ const reminderCountEl = document.getElementById("reminderCount");
 const calendarListEl = document.getElementById("calendarList");
 const calendarCountEl = document.getElementById("calendarCount");
 
+// Initialize 3D Character or Fallback
+function setupVisualAvatar() {
+  has3DCharacter = initCharacter("characterContainer");
+  if (!has3DCharacter) {
+    if (alexaRingWrapper) {
+      alexaRingWrapper.classList.remove("fallback-hidden");
+    }
+  }
+}
+
+// Select friendly natural English voice
+function pickFriendlyVoice() {
+  if (!("speechSynthesis" in window)) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices || voices.length === 0) return;
+
+  // Search for friendly female / natural voices often present in OS/Chrome
+  const preferredNames = [
+    "Google US English",
+    "Microsoft Jenny Online (Natural) - English (United States)",
+    "Microsoft Aria Online (Natural) - English (United States)",
+    "Samantha",
+    "Victoria",
+    "Karen",
+    "Zira"
+  ];
+
+  for (const name of preferredNames) {
+    const match = voices.find((v) => v.name.includes(name));
+    if (match) {
+      preferredVoice = match;
+      return;
+    }
+  }
+
+  // Fallback to any en-US or en-GB voice
+  preferredVoice =
+    voices.find((v) => v.lang === "en-US") ||
+    voices.find((v) => v.lang.startsWith("en")) ||
+    voices[0];
+}
+
+if ("speechSynthesis" in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    pickFriendlyVoice();
+  };
+  pickFriendlyVoice();
+}
+
 // Initialize Web Speech API for STT
 function initSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     console.warn("Web Speech API not supported in this browser.");
     return null;
@@ -43,7 +108,7 @@ function initSpeechRecognition() {
   rec.onstart = () => {
     isRecognizing = true;
     micBtn.classList.add("recording");
-    setOrbState("listening", "Listening to your request...");
+    updateAssistantVisualState("listening", "Listening to your request...");
   };
 
   rec.onresult = (event) => {
@@ -58,14 +123,14 @@ function initSpeechRecognition() {
     console.warn("Speech recognition error:", event.error);
     isRecognizing = false;
     micBtn.classList.remove("recording");
-    setOrbState("idle", "Tap microphone or type below");
+    updateAssistantVisualState("idle", "Tap microphone or type below");
   };
 
   rec.onend = () => {
     isRecognizing = false;
     micBtn.classList.remove("recording");
     if (!alexaRing.classList.contains("speaking")) {
-      setOrbState("idle", "Tap microphone or type below");
+      updateAssistantVisualState("idle", "Tap microphone or type below");
     }
   };
 
@@ -74,42 +139,81 @@ function initSpeechRecognition() {
 
 recognition = initSpeechRecognition();
 
-// Set Ring Orb state & status text
-function setOrbState(state, message) {
-  alexaRing.className = `alexa-ring ${state}`;
+// Update Visual State (both 3D avatar and fallback orb)
+export function updateAssistantVisualState(state, message) {
   if (message) statusText.innerHTML = message;
 
-  if (state === "listening") {
-    orbStatusIcon.textContent = "👂";
-  } else if (state === "speaking") {
-    orbStatusIcon.textContent = "🔊";
-  } else {
-    orbStatusIcon.textContent = "🎙️";
+  // 3D Avatar state
+  if (has3DCharacter) {
+    setCharacterState(state);
+  }
+
+  // 2D Orb fallback state
+  if (alexaRing) {
+    alexaRing.className = `alexa-ring ${state}`;
+    if (state === "listening") {
+      orbStatusIcon.textContent = "👂";
+    } else if (state === "speaking") {
+      orbStatusIcon.textContent = "🔊";
+    } else if (state === "thinking") {
+      orbStatusIcon.textContent = "💭";
+    } else {
+      orbStatusIcon.textContent = "🎙️";
+    }
   }
 }
 
-// Text-to-speech (TTS)
-function speakReply(text) {
+// Speak with Character: handles speech synthesis & syncs mouth animations
+export function speakWithCharacter(text) {
+  if (!text) return;
+
+  // Clean text from notices like [Notice: ...] for speech output
+  const speechClean = text.replace(/\[Notice:[^\]]+\]/g, "").trim();
+
+  // If TTS is muted or unsupported, simulate mouth movement for approximate sentence length
   if (!ttsEnabled || !("speechSynthesis" in window)) {
-    setOrbState("idle", "Ready &bull; Tap microphone or type below");
+    updateAssistantVisualState("speaking", "Speaking response (muted)...");
+    const words = speechClean.split(/\s+/).length;
+    const durationMs = Math.max(1200, Math.min(8000, words * 280));
+
+    const simInterval = setInterval(() => {
+      triggerMouthPhoneme(0.6);
+    }, 120);
+
+    setTimeout(() => {
+      clearInterval(simInterval);
+      closeMouthImmediately();
+      updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
+    }, durationMs);
     return;
   }
 
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
+  const utterance = new SpeechSynthesisUtterance(speechClean);
+  if (preferredVoice) utterance.voice = preferredVoice;
   utterance.rate = 1.0;
   utterance.pitch = 1.05;
 
   utterance.onstart = () => {
-    setOrbState("speaking", "Speaking response...");
+    updateAssistantVisualState("speaking", "Speaking response...");
+  };
+
+  // Synchronize mouth open phonemes to word boundaries
+  utterance.onboundary = (event) => {
+    if (event.name === "word") {
+      triggerMouthPhoneme(0.7);
+    }
   };
 
   utterance.onend = () => {
-    setOrbState("idle", "Ready &bull; Tap microphone or type below");
+    closeMouthImmediately();
+    updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
   };
 
-  utterance.onerror = () => {
-    setOrbState("idle", "Ready &bull; Tap microphone or type below");
+  utterance.onerror = (e) => {
+    console.warn("TTS error:", e);
+    closeMouthImmediately();
+    updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
   };
 
   window.speechSynthesis.speak(utterance);
@@ -154,7 +258,7 @@ async function handleSendMessage(messageText) {
 
   userInput.value = "";
   appendMessage("user", msg);
-  setOrbState("listening", "Processing with Alexa+ engine...");
+  updateAssistantVisualState("thinking", "Thinking and executing tools...");
 
   try {
     const response = await fetch("/api/chat", {
@@ -180,8 +284,8 @@ async function handleSendMessage(messageText) {
     // Append Assistant response and tool chips
     appendMessage("assistant", data.response, data.tools_called);
 
-    // Speak aloud
-    speakReply(data.response);
+    // Speak aloud with 3D avatar mouth synchronization
+    speakWithCharacter(data.response);
 
     // Refresh Dashboard State
     if (data.state) {
@@ -190,7 +294,8 @@ async function handleSendMessage(messageText) {
   } catch (err) {
     console.error("Chat error:", err);
     appendMessage("assistant", "Sorry, I had trouble processing that request.");
-    setOrbState("idle", "Error connecting to service");
+    closeMouthImmediately();
+    updateAssistantVisualState("idle", "Error connecting to service");
   }
 }
 
@@ -198,6 +303,20 @@ async function handleSendMessage(messageText) {
 function updateProviderBadge(provider) {
   providerBadge.className = `provider-badge ${provider}`;
   providerText.textContent = `Provider: ${provider}`;
+}
+
+// Check MCP Server availability
+async function checkMcpStatus() {
+  try {
+    const res = await fetch("http://127.0.0.1:8001/mcp", { method: "HEAD" }).catch(() => null);
+    if (res || (await fetch("/mcp-status").catch(() => null))) {
+      mcpBadge.classList.remove("hidden");
+      mcpBadge.classList.add("online");
+      mcpText.textContent = "MCP: running";
+    }
+  } catch (e) {
+    // If not reachable, keep badge hidden or offline
+  }
 }
 
 // Render Dashboard State
@@ -272,8 +391,7 @@ async function loadInitialState() {
     console.warn("Could not load initial state:", err);
   }
 
-  // Greet user
-  appendMessage("assistant", "Hi there! I'm your family voice assistant. What can I do for you?");
+  checkMcpStatus();
 }
 
 // Escape helper for HTML rendering safety
@@ -320,6 +438,7 @@ toggleTtsBtn.addEventListener("click", () => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
+    closeMouthImmediately();
   }
 });
 
@@ -328,6 +447,17 @@ clearChatBtn.addEventListener("click", () => {
   chatHistory = [];
   appendMessage("assistant", "Chat cleared. What can I help with next?");
 });
+
+// Start button for browser speech autoplay unlock
+if (startBtn) {
+  startBtn.addEventListener("click", () => {
+    hasStarted = true;
+    startBtn.style.display = "none";
+    const greeting = "Hi! I'm your family assistant. What would you like to add to the list today?";
+    appendMessage("assistant", greeting);
+    speakWithCharacter(greeting);
+  });
+}
 
 // Demo prompt chips click
 document.querySelectorAll(".chip-btn").forEach((btn) => {
@@ -341,4 +471,5 @@ document.querySelectorAll(".chip-btn").forEach((btn) => {
 });
 
 // Boot
+setupVisualAvatar();
 loadInitialState();

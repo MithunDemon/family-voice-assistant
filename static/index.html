@@ -20,6 +20,10 @@
           <span class="subtitle">Alexa+ Simulated Experience</span>
         </div>
         <div class="header-controls">
+          <div id="mcpBadge" class="provider-badge mcp-badge hidden" title="MCP Server status">
+            <span class="dot"></span>
+            <span id="mcpText">MCP: offline</span>
+          </div>
           <div id="providerBadge" class="provider-badge mock">
             <span class="dot"></span>
             <span id="providerText">Provider: mock</span>
@@ -30,17 +34,29 @@
         </div>
       </header>
 
-      <!-- Center Voice Orb/Ring Area -->
+      <!-- Center 3D Character Area (with 2D Orb fallback) -->
       <section class="orb-container">
-        <div class="alexa-ring-wrapper">
-          <div id="alexaRing" class="alexa-ring idle">
-            <div class="ring-core">
-              <span id="orbStatusIcon">🎙️</span>
+        <!-- 3D Avatar Canvas Mount -->
+        <div id="characterWrapper" class="character-wrapper">
+          <div id="characterContainer" class="character-container"></div>
+          <!-- 2D Orb Fallback if WebGL fails -->
+          <div id="alexaRingWrapper" class="alexa-ring-wrapper fallback-hidden">
+            <div id="alexaRing" class="alexa-ring idle">
+              <div class="ring-core">
+                <span id="orbStatusIcon">🎙️</span>
+              </div>
             </div>
           </div>
         </div>
+
+        <div class="avatar-controls">
+          <button id="startBtn" class="start-btn" title="Click to begin talking avatar experience">
+            <span>✨ Start Voice Assistant</span>
+          </button>
+        </div>
+
         <div class="status-indicator">
-          <span id="statusText">Ready &bull; Tap microphone or type below</span>
+          <span id="statusText">Ready &bull; Click Start, tap microphone or type below</span>
         </div>
       </section>
 
@@ -136,6 +152,6 @@
     </aside>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script type="module" src="/static/app.js"></script>
 </body>
 </html>

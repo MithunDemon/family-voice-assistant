@@ -31,3 +31,13 @@ This log tracks hurdles, edge cases, and SDK nuances encountered during developm
   - *Actual*: Browsers (especially Chromium) restrict `SpeechRecognition` to `localhost` or HTTPS origins. In non-supported browsers or insecure hostnames, the API throws errors or fails silently.
   - *Workaround*: Built full fallback support: keyboard input, enter-to-submit, visual status cues, and interactive "demo prompt chips" so the assistant can be completely demonstrated and tested even without mic permissions.
 - **Suggestion**: Provide clear UI error states when audio permissions are blocked, and ensure all voice actions have one-click text equivalents.
+
+---
+
+### Entry 4: Browser Autoplay Policy & Speech Synthesis Initial Load
+- **Task**: Having the assistant speak a welcome greeting or reply immediately upon page load without prior user interaction.
+- **Expected vs. Actual**:
+  - *Expected*: `window.speechSynthesis.speak()` immediately outputs audio upon DOM ready.
+  - *Actual*: Modern browsers enforce strict autoplay policies that block unprompted audio synthesis until an explicit user gesture (click/tap) occurs on the document.
+  - *Workaround*: Added an explicit, stylish **"✨ Start Voice Assistant"** interaction button in the UI. When clicked, it unlocks browser audio, mounts the 3D character context, and speaks the initial conversational greeting naturally.
+  - *Suggestion*: Always gate initial voice greetings behind an explicit user gesture and maintain visual transcripts in parallel so information is never lost if audio is suppressed.
