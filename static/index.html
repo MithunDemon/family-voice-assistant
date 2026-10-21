@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Family Voice Assistant - Alexa+ Experience</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Left / Main Voice Experience -->
+    <main class="voice-experience">
+      <header class="top-nav">
+        <div class="brand">
+          <div class="echo-dot"></div>
+          <h1>Family Voice Assistant</h1>
+          <span class="subtitle">Alexa+ Simulated Experience</span>
+        </div>
+        <div class="header-controls">
+          <div id="providerBadge" class="provider-badge mock">
+            <span class="dot"></span>
+            <span id="providerText">Provider: mock</span>
+          </div>
+          <button id="toggleTtsBtn" class="icon-btn active" title="Toggle Text to Speech" aria-label="Toggle Text to Speech">
+            <span id="ttsIcon">🔊</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Center Voice Orb/Ring Area -->
+      <section class="orb-container">
+        <div class="alexa-ring-wrapper">
+          <div id="alexaRing" class="alexa-ring idle">
+            <div class="ring-core">
+              <span id="orbStatusIcon">🎙️</span>
+            </div>
+          </div>
+        </div>
+        <div class="status-indicator">
+          <span id="statusText">Ready &bull; Tap microphone or type below</span>
+        </div>
+      </section>
+
+      <!-- Chat Transcript Section -->
+      <section class="transcript-section">
+        <div class="transcript-header">
+          <span>Conversation Transcript</span>
+          <button id="clearChatBtn" class="text-btn">Clear</button>
+        </div>
+        <div id="chatHistory" class="chat-history">
+          <!-- Dynamic chat bubbles inserted here -->
+        </div>
+      </section>
+
+      <!-- Quick Demo Prompts -->
+      <div class="quick-chips">
+        <span class="chips-label">Demo script:</span>
+        <button class="chip-btn" data-prompt="Add milk and eggs to the grocery list">🛒 Add milk and eggs</button>
+        <button class="chip-btn" data-prompt="What's on the list?">📋 What's on the list?</button>
+        <button class="chip-btn" data-prompt="Remind Mom to call the doctor at 4pm">⏰ Remind Mom to call doctor</button>
+        <button class="chip-btn" data-prompt="What's on the calendar tomorrow?">📅 Calendar tomorrow?</button>
+        <button class="chip-btn" data-prompt="Remove eggs from the list">❌ Remove eggs</button>
+      </div>
+
+      <!-- Voice and Text Input Bar -->
+      <footer class="input-bar">
+        <button id="micBtn" class="mic-button" title="Speak to assistant" aria-label="Start Voice Recording">
+          <svg class="mic-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </button>
+        <form id="chatForm" class="chat-form">
+          <input
+            type="text"
+            id="userInput"
+            placeholder="Type or click mic to ask (e.g., 'Add milk and eggs to grocery list')..."
+            autocomplete="off"
+          />
+          <button type="submit" id="sendBtn" class="send-btn" aria-label="Send">
+            <span>Send</span>
+          </button>
+        </form>
+      </footer>
+    </main>
+
+    <!-- Right Side: Live Family Dashboard State -->
+    <aside class="dashboard-panel">
+      <div class="panel-header">
+        <h2>Live Family State</h2>
+        <span class="refresh-indicator" id="lastUpdated">Updated just now</span>
+      </div>
+
+      <div class="state-cards">
+        <!-- Card 1: Groceries -->
+        <div class="state-card">
+          <div class="card-title">
+            <span class="icon">🛒</span>
+            <h3>Grocery List</h3>
+            <span id="groceryCount" class="badge">0</span>
+          </div>
+          <div id="groceryList" class="card-list">
+            <div class="empty-state">No items</div>
+          </div>
+        </div>
+
+        <!-- Card 2: Reminders -->
+        <div class="state-card">
+          <div class="card-title">
+            <span class="icon">⏰</span>
+            <h3>Reminders</h3>
+            <span id="reminderCount" class="badge">0</span>
+          </div>
+          <div id="reminderList" class="card-list">
+            <div class="empty-state">No reminders</div>
+          </div>
+        </div>
+
+        <!-- Card 3: Family Calendar -->
+        <div class="state-card">
+          <div class="card-title">
+            <span class="icon">📅</span>
+            <h3>Family Calendar</h3>
+            <span id="calendarCount" class="badge">0</span>
+          </div>
+          <div id="calendarList" class="card-list">
+            <div class="empty-state">No events scheduled</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
