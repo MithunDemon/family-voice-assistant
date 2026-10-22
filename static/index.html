@@ -53,6 +53,19 @@
           <button id="startBtn" class="start-btn" title="Click to begin talking avatar experience">
             <span>✨ Start Voice Assistant</span>
           </button>
+          <button id="autoDemoBtn" class="demo-btn run" title="Run automated multi-step scenario for demo video recording">
+            <span>▶ Run auto demo</span>
+          </button>
+          <button id="resetDemoBtn" class="demo-btn reset" title="Reset state to clean default seed data">
+            <span>🔄 Reset demo</span>
+          </button>
+        </div>
+
+        <!-- Demo Running Banner -->
+        <div id="demoBanner" class="demo-banner hidden">
+          <span class="demo-pulse"></span>
+          <span id="demoStepText" class="demo-banner-text">Demo running: Step 1/6</span>
+          <button id="stopDemoBtn" class="stop-demo-btn" title="Stop automatic demo">⏹ Stop</button>
         </div>
 
         <div class="status-indicator">

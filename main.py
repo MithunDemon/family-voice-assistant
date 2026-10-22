@@ -44,6 +44,17 @@ def get_state():
     }
 
 
+@app.post("/api/reset")
+def reset_state():
+    """Resets the store state to clean demo seed data."""
+    clean_state = store.reset()
+    return {
+        "success": True,
+        "provider": os.getenv("LLM_PROVIDER", "mock"),
+        "state": clean_state
+    }
+
+
 @app.post("/api/chat", response_model=ChatResponse)
 def chat_turn(req: ChatRequest):
     """Processes user voice/text query, executes tools, and returns spoken-style reply."""

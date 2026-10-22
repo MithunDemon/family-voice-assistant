@@ -49,10 +49,21 @@ class FamilyStore:
     def get_state(self) -> Dict[str, Any]:
         return self.state
 
+    def reset(self) -> Dict[str, Any]:
+        """Resets the store state to clean default seed data."""
+        self.state = json.loads(json.dumps(DEFAULT_STATE))
+        self._save()
+        return self.state
+
     # Groceries
     def add_grocery_item(self, item: str, quantity: str = "1") -> Dict[str, Any]:
-        clean_item = item.strip()
-        # Check if already exists (case-insensitive)
+        raw_item = item.strip()
+        # Capitalize the first letter of grocery item names (e.g. "milk" -> "Milk")
+        clean_item = raw_item[0].upper() + raw_item[1:] if raw_item else ""
+        if not clean_item:
+            return {"success": False, "action": "empty", "item": ""}
+
+        # Check if already exists (case-insensitive) - update instead of creating duplicate
         for g in self.state.get("groceries", []):
             if g["item"].lower() == clean_item.lower():
                 g["quantity"] = quantity or g.get("quantity", "1")
@@ -88,15 +99,27 @@ class FamilyStore:
 
     # Reminders
     def add_reminder(self, for_person: str, text: str, due_time: str = "soon") -> Dict[str, Any]:
+        person_clean = for_person.strip().capitalize() if for_person else "Everyone"
+        clean_text = text.strip()
+        clean_due = due_time.strip() if due_time else "soon"
+
+        # Check for identical reminder (same person and similar/same text) - update instead of duplicate
+        for r in self.state.get("reminders", []):
+            if (r.get("for_person", "").lower() == person_clean.lower() and
+                    r.get("text", "").lower().strip() == clean_text.lower()):
+                r["due_time"] = clean_due
+                self._save()
+                return {"success": True, "action": "updated", "reminder": r}
+
         new_entry = {
             "id": f"r-{len(self.state.get('reminders', [])) + 1}",
-            "for_person": for_person.strip().capitalize() if for_person else "Everyone",
-            "text": text.strip(),
-            "due_time": due_time.strip() if due_time else "soon"
+            "for_person": person_clean,
+            "text": clean_text,
+            "due_time": clean_due
         }
         self.state.setdefault("reminders", []).append(new_entry)
         self._save()
-        return {"success": True, "reminder": new_entry}
+        return {"success": True, "action": "added", "reminder": new_entry}
 
     def list_reminders(self, for_person: str = None) -> List[Dict[str, Any]]:
         reminders = self.state.get("reminders", [])
@@ -107,15 +130,27 @@ class FamilyStore:
 
     # Calendar Events
     def add_event(self, title: str, date: str = "Today", time: str = "All day") -> Dict[str, Any]:
+        clean_title = title.strip()
+        clean_date = date.strip().capitalize() if date else "Today"
+        clean_time = time.strip() if time else "All day"
+
+        # Avoid exact duplicate events
+        for e in self.state.get("events", []):
+            if (e.get("title", "").lower() == clean_title.lower() and
+                    e.get("date", "").lower() == clean_date.lower()):
+                e["time"] = clean_time
+                self._save()
+                return {"success": True, "action": "updated", "event": e}
+
         new_entry = {
             "id": f"e-{len(self.state.get('events', [])) + 1}",
-            "title": title.strip(),
-            "date": date.strip().capitalize() if date else "Today",
-            "time": time.strip() if time else "All day"
+            "title": clean_title,
+            "date": clean_date,
+            "time": clean_time
         }
         self.state.setdefault("events", []).append(new_entry)
         self._save()
-        return {"success": True, "event": new_entry}
+        return {"success": True, "action": "added", "event": new_entry}
 
     def list_events(self, date: str = None) -> List[Dict[str, Any]]:
         events = self.state.get("events", [])

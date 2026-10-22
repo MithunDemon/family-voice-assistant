@@ -163,60 +163,89 @@ export function updateAssistantVisualState(state, message) {
   }
 }
 
+// Demo Mode State
+let isAutoDemoRunning = false;
+let autoDemoAbortController = null;
+
+// Reset Demo button & auto demo elements
+const autoDemoBtn = document.getElementById("autoDemoBtn");
+const resetDemoBtn = document.getElementById("resetDemoBtn");
+const demoBanner = document.getElementById("demoBanner");
+const demoStepText = document.getElementById("demoStepText");
+const stopDemoBtn = document.getElementById("stopDemoBtn");
+
 // Speak with Character: handles speech synthesis & syncs mouth animations
+// Returns a Promise that resolves when speech finishes
 export function speakWithCharacter(text) {
-  if (!text) return;
+  if (!text) return Promise.resolve();
 
   // Clean text from notices like [Notice: ...] for speech output
   const speechClean = text.replace(/\[Notice:[^\]]+\]/g, "").trim();
 
-  // If TTS is muted or unsupported, simulate mouth movement for approximate sentence length
-  if (!ttsEnabled || !("speechSynthesis" in window)) {
-    updateAssistantVisualState("speaking", "Speaking response (muted)...");
-    const words = speechClean.split(/\s+/).length;
-    const durationMs = Math.max(1200, Math.min(8000, words * 280));
+  return new Promise((resolve) => {
+    // If TTS is muted or unsupported, simulate mouth movement for approximate sentence length
+    if (!ttsEnabled || !("speechSynthesis" in window)) {
+      updateAssistantVisualState("speaking", "Speaking response...");
+      const words = speechClean.split(/\s+/).length;
+      const durationMs = Math.max(1200, Math.min(8000, words * 280));
 
-    const simInterval = setInterval(() => {
-      triggerMouthPhoneme(0.6);
-    }, 120);
+      const simInterval = setInterval(() => {
+        triggerMouthPhoneme(0.7);
+      }, 120);
 
-    setTimeout(() => {
-      clearInterval(simInterval);
+      setTimeout(() => {
+        clearInterval(simInterval);
+        closeMouthImmediately();
+        updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
+        resolve();
+      }, durationMs);
+      return;
+    }
+
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(speechClean);
+      if (preferredVoice) utterance.voice = preferredVoice;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.05;
+
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        closeMouthImmediately();
+        updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
+        resolve();
+      };
+
+      utterance.onstart = () => {
+        updateAssistantVisualState("speaking", "Speaking response...");
+      };
+
+      // Synchronize mouth open phonemes to word boundaries
+      utterance.onboundary = (event) => {
+        if (event.name === "word") {
+          triggerMouthPhoneme(0.8);
+        }
+      };
+
+      utterance.onend = finish;
+      utterance.onerror = finish;
+
+      window.speechSynthesis.speak(utterance);
+
+      // Safety timeout in case speechSynthesis event doesn't fire
+      const maxMs = Math.max(3000, speechClean.split(/\s+/).length * 400 + 2000);
+      setTimeout(() => {
+        if (!finished) finish();
+      }, maxMs);
+    } catch (e) {
+      console.warn("TTS speak exception:", e);
       closeMouthImmediately();
       updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
-    }, durationMs);
-    return;
-  }
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(speechClean);
-  if (preferredVoice) utterance.voice = preferredVoice;
-  utterance.rate = 1.0;
-  utterance.pitch = 1.05;
-
-  utterance.onstart = () => {
-    updateAssistantVisualState("speaking", "Speaking response...");
-  };
-
-  // Synchronize mouth open phonemes to word boundaries
-  utterance.onboundary = (event) => {
-    if (event.name === "word") {
-      triggerMouthPhoneme(0.7);
+      resolve();
     }
-  };
-
-  utterance.onend = () => {
-    closeMouthImmediately();
-    updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
-  };
-
-  utterance.onerror = (e) => {
-    console.warn("TTS error:", e);
-    closeMouthImmediately();
-    updateAssistantVisualState("idle", "Ready &bull; Tap microphone or type below");
-  };
-
-  window.speechSynthesis.speak(utterance);
+  });
 }
 
 // Append Chat Bubble to Transcript
@@ -254,7 +283,7 @@ function appendMessage(role, text, tools = []) {
 // Send user query to backend
 async function handleSendMessage(messageText) {
   const msg = (messageText || userInput.value).trim();
-  if (!msg) return;
+  if (!msg) return Promise.resolve();
 
   userInput.value = "";
   appendMessage("user", msg);
@@ -284,18 +313,19 @@ async function handleSendMessage(messageText) {
     // Append Assistant response and tool chips
     appendMessage("assistant", data.response, data.tools_called);
 
-    // Speak aloud with 3D avatar mouth synchronization
-    speakWithCharacter(data.response);
-
     // Refresh Dashboard State
     if (data.state) {
       renderState(data.state);
     }
+
+    // Speak aloud with 3D avatar mouth synchronization (returns Promise)
+    return await speakWithCharacter(data.response);
   } catch (err) {
     console.error("Chat error:", err);
     appendMessage("assistant", "Sorry, I had trouble processing that request.");
     closeMouthImmediately();
     updateAssistantVisualState("idle", "Error connecting to service");
+    return Promise.resolve();
   }
 }
 
@@ -448,14 +478,148 @@ clearChatBtn.addEventListener("click", () => {
   appendMessage("assistant", "Chat cleared. What can I help with next?");
 });
 
-// Start button for browser speech autoplay unlock
-if (startBtn) {
-  startBtn.addEventListener("click", () => {
-    hasStarted = true;
-    startBtn.style.display = "none";
-    const greeting = "Hi! I'm your family assistant. What would you like to add to the list today?";
-    appendMessage("assistant", greeting);
-    speakWithCharacter(greeting);
+// Demo Helper: sleep with cancellation support
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        clearTimeout(timer);
+        reject(new Error("Demo stopped"));
+      });
+    }
+  });
+}
+
+// Reset State to Clean Default Seed Data
+async function resetDemoData() {
+  try {
+    const res = await fetch("/api/reset", { method: "POST" });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.state) renderState(data.state);
+      // Clean chat transcript and show friendly notification
+      chatHistoryEl.innerHTML = "";
+      chatHistory = [];
+      appendMessage("assistant", "Demo state reset to clean seed data: Apples, Almond milk, Dad & Mia reminders, and upcoming family events.");
+    }
+  } catch (err) {
+    console.error("Reset error:", err);
+  }
+}
+
+// Auto Demo Orchestrator
+async function startAutoDemo() {
+  if (isAutoDemoRunning) return;
+
+  isAutoDemoRunning = true;
+  autoDemoAbortController = new AbortController();
+  const signal = autoDemoAbortController.signal;
+
+  // Visual UI state
+  if (startBtn) startBtn.style.display = "none";
+  if (autoDemoBtn) autoDemoBtn.disabled = true;
+  if (resetDemoBtn) resetDemoBtn.disabled = true;
+  if (demoBanner) demoBanner.classList.remove("hidden");
+
+  // First reset to ensure deterministic clean state
+  await resetDemoData();
+  chatHistoryEl.innerHTML = "";
+  chatHistory = [];
+
+  const demoSteps = [
+    {
+      type: "greet",
+      text: "Hi! I'm your family assistant. What would you like to add to the list today?"
+    },
+    {
+      type: "user",
+      text: "Add milk and eggs to the grocery list"
+    },
+    {
+      type: "user",
+      text: "What's on the list?"
+    },
+    {
+      type: "user",
+      text: "Remind Mom to call the doctor at 4pm"
+    },
+    {
+      type: "user",
+      text: "What's on the calendar tomorrow?"
+    },
+    {
+      type: "user",
+      text: "Remove eggs from the list"
+    }
+  ];
+
+  try {
+    for (let i = 0; i < demoSteps.length; i++) {
+      if (signal.aborted) break;
+
+      const step = demoSteps[i];
+      if (demoStepText) {
+        demoStepText.textContent = `Demo running: Step ${i + 1}/${demoSteps.length} ("${step.text.slice(0, 24)}...")`;
+      }
+
+      if (step.type === "greet") {
+        appendMessage("assistant", step.text);
+        await speakWithCharacter(step.text);
+      } else {
+        await handleSendMessage(step.text);
+      }
+
+      // 2-3 second pause after each assistant reply finishes speaking
+      await sleep(2500, signal);
+    }
+
+    if (demoStepText) {
+      demoStepText.textContent = "Demo completed! ✨";
+    }
+    await sleep(2000, signal);
+  } catch (err) {
+    console.log("Auto demo interrupted or finished:", err.message);
+  } finally {
+    isAutoDemoRunning = false;
+    autoDemoAbortController = null;
+    if (autoDemoBtn) autoDemoBtn.disabled = false;
+    if (resetDemoBtn) resetDemoBtn.disabled = false;
+    if (demoBanner) demoBanner.classList.add("hidden");
+  }
+}
+
+function stopAutoDemo() {
+  if (autoDemoAbortController) {
+    autoDemoAbortController.abort();
+  }
+  isAutoDemoRunning = false;
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
+  closeMouthImmediately();
+  updateAssistantVisualState("idle", "Demo stopped. Ready for interaction.");
+  if (autoDemoBtn) autoDemoBtn.disabled = false;
+  if (resetDemoBtn) resetDemoBtn.disabled = false;
+  if (demoBanner) demoBanner.classList.add("hidden");
+}
+
+// Event Listeners for Demo Controls
+if (resetDemoBtn) {
+  resetDemoBtn.addEventListener("click", () => {
+    resetDemoData();
+  });
+}
+
+if (autoDemoBtn) {
+  autoDemoBtn.addEventListener("click", () => {
+    startAutoDemo();
+  });
+}
+
+if (stopDemoBtn) {
+  stopDemoBtn.addEventListener("click", () => {
+    stopAutoDemo();
   });
 }
 

@@ -85,60 +85,53 @@ The web client features an interactive procedural 3D assistant character rendere
 - Python 3.11+
 - Modern Web Browser (Google Chrome, Edge, or Safari for Web Speech API support)
 
-### 2. Installation
+### 2. Windows Setup (PowerShell / Command Prompt)
 
-Clone and navigate into the repository:
-```bash
-git clone <repo-url>
-cd family-voice-assistant
-```
+1. Open PowerShell in the project directory:
+   ```powershell
+   cd c:\Users\user\.gemini\antigravity-ide\scratch\family-voice-assistant
+   ```
 
-Create a virtual environment (optional but recommended):
-```bash
-python -m venv venv
-# On Windows:
-.\venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-```
+2. Create and activate a virtual environment (optional but recommended):
+   ```powershell
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+   ```
 
-Install dependencies:
-```bash
-python -m pip install -r requirements.txt
-```
+3. Install required packages:
+   ```powershell
+   python -m pip install -r requirements.txt
+   ```
 
 ---
 
-## 🏃 Running the Application
+## 🏃 Running the Application on Windows
 
-### Option A: Zero Keys / Mock Mode (Recommended for testing)
+### Option A: Zero-Configuration Mock Mode (Default)
 
-No AWS keys or internet connectivity needed.
+No AWS keys or cloud connectivity needed. Ideal for quick testing and local demos.
 
-1. Ensure `.env` is configured for mock (or just run directly):
-   ```bash
-   # Copy example if not already present
-   cp .env.example .env
+1. Ensure `.env` is set to `LLM_PROVIDER=mock`:
+   ```powershell
+   Copy-Item .env.example .env
    ```
-   Verify `LLM_PROVIDER=mock` in `.env`.
+   *(`LLM_PROVIDER=mock` is the default in `.env.example`)*
 
-2. Start the server:
-   ```bash
-   uvicorn main:app --reload
+2. Start the FastAPI server:
+   ```powershell
+   python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
    ```
 
-3. Open your browser at:
-   ```
+3. Open your browser:
+   ```text
    http://127.0.0.1:8000
    ```
 
 ---
 
-### Option B: Amazon Bedrock Provider (AWS Credentials)
+### Option B: Amazon Bedrock Provider with Safe Fallback
 
-To use Amazon Bedrock Converse API with Claude 3 Haiku or Claude 3.5 Sonnet:
-
-1. Configure `.env`:
+1. In `.env`, set:
    ```ini
    LLM_PROVIDER=bedrock
    AWS_REGION=us-east-1
@@ -149,11 +142,11 @@ To use Amazon Bedrock Converse API with Claude 3 Haiku or Claude 3.5 Sonnet:
    *(Or authenticate via standard AWS CLI: `aws configure`)*
 
 2. Start the server:
-   ```bash
-   uvicorn main:app --reload
+   ```powershell
+   python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
    ```
 
-3. Check the top right of the web UI: the badge will display **`PROVIDER: BEDROCK`**.
+3. **Safe Failover Behavior**: If AWS credentials are missing or Bedrock returns any error, the assistant catches the exception, prepends a short notification in the chat, and immediately falls back to the `mock` engine so requests never crash. The top-right provider badge dynamically updates to reflect whichever provider is actively answering (`mock` or `bedrock`).
 
 ---
 
