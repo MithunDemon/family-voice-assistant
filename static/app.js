@@ -166,6 +166,7 @@ export function updateAssistantVisualState(state, message) {
 // Demo Mode State
 let isAutoDemoRunning = false;
 let autoDemoAbortController = null;
+let audioUnlocked = false;
 
 // Reset Demo button & auto demo elements
 const autoDemoBtn = document.getElementById("autoDemoBtn");
@@ -173,6 +174,25 @@ const resetDemoBtn = document.getElementById("resetDemoBtn");
 const demoBanner = document.getElementById("demoBanner");
 const demoStepText = document.getElementById("demoStepText");
 const stopDemoBtn = document.getElementById("stopDemoBtn");
+
+/**
+ * Unlock browser audio autoplay policy.
+ * Chrome blocks speechSynthesis.speak() until a user-gesture touches the page.
+ * Call this inside any click handler to satisfy the policy.
+ */
+function unlockAudio() {
+  if (audioUnlocked) return;
+  if (!("speechSynthesis" in window)) return;
+  // Fire-and-cancel a silent utterance during the user-gesture stack frame
+  const unlock = new SpeechSynthesisUtterance(" ");
+  unlock.volume = 0;
+  unlock.onend = () => { audioUnlocked = true; };
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(unlock);
+  // Chrome sometimes gets stuck in 'paused' state – resume it
+  if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  audioUnlocked = true;
+}
 
 // Speak with Character: handles speech synthesis & syncs mouth animations
 // Returns a Promise that resolves when speech finishes
@@ -512,6 +532,14 @@ async function resetDemoData() {
 async function startAutoDemo() {
   if (isAutoDemoRunning) return;
 
+  // Unlock browser audio as part of this user-gesture handler
+  unlockAudio();
+
+  // Chrome sometimes pauses synthesis between pages — always resume
+  if ("speechSynthesis" in window && window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+  }
+
   isAutoDemoRunning = true;
   autoDemoAbortController = new AbortController();
   const signal = autoDemoAbortController.signal;
@@ -607,13 +635,27 @@ function stopAutoDemo() {
 // Event Listeners for Demo Controls
 if (resetDemoBtn) {
   resetDemoBtn.addEventListener("click", () => {
+    unlockAudio(); // satisfy autoplay policy in case user clicks Reset before Start
     resetDemoData();
   });
 }
 
 if (autoDemoBtn) {
   autoDemoBtn.addEventListener("click", () => {
+    // unlockAudio() is called inside startAutoDemo() — no need to double-call
     startAutoDemo();
+  });
+}
+
+// Also unlock audio when Start button is clicked (existing flow)
+if (startBtn) {
+  startBtn.addEventListener("click", () => {
+    unlockAudio();
+    hasStarted = true;
+    startBtn.style.display = "none";
+    const greeting = "Hi! I'm your family assistant. What would you like to add to the list today?";
+    appendMessage("assistant", greeting);
+    speakWithCharacter(greeting);
   });
 }
 
@@ -626,6 +668,7 @@ if (stopDemoBtn) {
 // Demo prompt chips click
 document.querySelectorAll(".chip-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
+    unlockAudio(); // unlock audio on any user interaction
     const prompt = btn.getAttribute("data-prompt");
     if (prompt) {
       userInput.value = prompt;
@@ -634,6 +677,15 @@ document.querySelectorAll(".chip-btn").forEach((btn) => {
   });
 });
 
+// Chrome Bug Workaround: speechSynthesis pauses silently after ~14s of inactivity.
+// Keep-alive: resume every 10 seconds while speaking.
+setInterval(() => {
+  if ("speechSynthesis" in window && window.speechSynthesis.speaking && window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+  }
+}, 10000);
+
 // Boot
 setupVisualAvatar();
 loadInitialState();
+
